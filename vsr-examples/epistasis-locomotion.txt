@@ -1,0 +1,299 @@
+$duration = 20
+
+$bodySize = 42
+$brainSize = 42
+
+$wShape = 7
+$hShape = 6
+
+$MAPPERzeroFive = er.m.bodyBrainHomoDistributedVSR(
+  w = $wShape;
+  h = $hShape;
+  sensors = [s.s.ar(); s.s.rv(a = 0); s.s.rv(a = 90)];
+  directional = false;
+  of = ea.m.pair(
+    of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 0.5));
+    first = ea.m.dsToFixedGrid(negItem = s.a.vsr.voxel(type = none); posItem = s.a.vsr.voxel(type = soft));
+    second = ea.m.steppedNds(of = ea.m.dsToNpnds(npnds = ds.num.mlp(innerLayerRatio = 0.5; nOfInnerLayers = 1)); stepT = 0.2)
+  )
+)
+
+$MAPPERone = er.m.bodyBrainHomoDistributedVSR(
+  w = $wShape;
+  h = $hShape;
+  sensors = [s.s.ar(); s.s.rv(a = 0); s.s.rv(a = 90)];
+  directional = false;
+  of = ea.m.pair(
+    of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 1.0));
+    first = ea.m.dsToFixedGrid(negItem = s.a.vsr.voxel(type = none); posItem = s.a.vsr.voxel(type = soft));
+    second = ea.m.steppedNds(of = ea.m.dsToNpnds(npnds = ds.num.mlp(innerLayerRatio = 0.5; nOfInnerLayers = 1)); stepT = 0.2)
+  )
+)
+
+$MAPPERtwo = er.m.bodyBrainHomoDistributedVSR(
+  w = $wShape;
+  h = $hShape;
+  sensors = [s.s.ar(); s.s.rv(a = 0); s.s.rv(a = 90)];
+  directional = false;
+  of = ea.m.pair(
+    of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 2.0));
+    first = ea.m.dsToFixedGrid(negItem = s.a.vsr.voxel(type = none); posItem = s.a.vsr.voxel(type = soft));
+    second = ea.m.steppedNds(of = ea.m.dsToNpnds(npnds = ds.num.mlp(innerLayerRatio = 0.5; nOfInnerLayers = 1)); stepT = 0.2)
+  )
+)
+
+$eRrepresentation = ea.representation.pair(
+  first = ea.representation.doubleString();
+  second = ea.representation.intString(mutations = [ea.r.go.oneMutation(mutations = [ea.r.go.isSymbolCopyMutation(); ea.r.go.isFlipMutation()])])
+)
+
+$bodyEpistasis = f.as(of = ea.f.intraEpistasis(of = f.pairSecond(of = ea.f.genotype()); endOffset = $brainSize); name = "body.epistasis")
+$brainEpistasis = f.as(of = ea.f.intraEpistasis(of = f.pairSecond(of = ea.f.genotype()); startOffset = $bodySize); name = "brain.epistasis")
+$globalEpistasis = f.as(of = ea.f.intraEpistasis(of = f.pairSecond(of = ea.f.genotype())); name = "global.epistasis")
+$crossEpistasis = f.as(of = ea.f.crossEpistasis(of = f.pairSecond(of = ea.f.genotype()); splitOffset = $bodySize); name = "cross.epistasis")
+
+ea.experiment(
+  runs = (randomGenerator = (seed = [1:1:10]) * [m.defaultRG()]) * (
+    solver = (nEval = [20000]) * [
+      ea.s.ga(
+        name = "ga-epistasis-0.5";
+        mapper = $MAPPERzeroFive;
+        representation = $eRrepresentation
+      );
+      ea.s.ga(
+        name = "ga-epistasis-1.0";
+        mapper = $MAPPERone;
+        representation = $eRrepresentation
+      );
+      ea.s.ga(
+        name = "ga-epistasis-2.0";
+        mapper = $MAPPERtwo;
+        representation = $eRrepresentation
+      );
+      ea.s.ga(
+        name = "ga-single-ds";
+        mapper = er.m.bodyBrainHomoDistributedVSR(
+          w = $wShape;
+          h = $hShape;
+          sensors = [s.s.ar(); s.s.rv(a = 0); s.s.rv(a = 90)];
+          directional = false;
+          of = ea.m.pair(
+            of = ea.m.splitter();
+            first = ea.m.dsToFixedGrid(negItem = s.a.vsr.voxel(type = none); posItem = s.a.vsr.voxel(type = soft));
+            second = ea.m.steppedNds(of = ea.m.dsToNpnds(npnds = ds.num.mlp(innerLayerRatio = 0.5; nOfInnerLayers = 1)); stepT = 0.2)
+          )
+        );
+        representation = ea.representation.doubleString()
+      )
+    ]) * [
+    ea.run(
+      problem = ea.p.smoToSubsettedSmo(
+        smoProblem = ea.p.simToSmo(
+          simulation = s.task.locomotion(duration = $duration);
+          toMaxObjectives = [s.f.outcome.faXVelocity()]
+        );
+        objectives = ["first.agent.velocity.x"]
+      )
+    )
+  ];
+  listeners = [
+    ea.l.console(
+      functions = [
+        f.mapValue(key = "first.agent.velocity.x"; of = ea.f.quality(of = ea.f.best()); format = "%5.3f");
+        ea.f.size(of = f.pairFirst(of = ea.f.genotype(of = ea.f.best())); format = "%3d");
+        ea.f.size(of = f.pairSecond(of = ea.f.genotype(of = ea.f.best())); format = "%3d");
+        f.composition(of = ea.f.best(); then = $bodyEpistasis);
+        f.composition(of = ea.f.best(); then = $brainEpistasis);
+        f.composition(of = ea.f.best(); then = $globalEpistasis);
+        f.composition(of = ea.f.best(); then = $crossEpistasis)
+      ]
+    );
+    ea.l.bestCsv(
+      path = "./results/{name}/{startTime}/results.csv";
+      functions = [
+        f.mapValue(key = "first.agent.velocity.x"; of = ea.f.behaviorQuality(of = ea.f.quality(of = ea.f.best())); format = "%6.4f");
+        ea.f.size(of = ea.f.genotype(of = ea.f.best()); format = "%3d");
+        ea.f.size(of = f.pairFirst(of = ea.f.genotype(of = ea.f.best())); format = "%3d");
+        ea.f.size(of = f.pairSecond(of = ea.f.genotype(of = ea.f.best())); format = "%3d");
+        f.composition(of = ea.f.best(); then = $bodyEpistasis);
+        f.composition(of = ea.f.best(); then = $brainEpistasis);
+        f.composition(of = ea.f.best(); then = $globalEpistasis);
+        f.composition(of = ea.f.best(); then = $crossEpistasis);
+        f.avg(of = f.each(of = ea.f.all(); mapF = $bodyEpistasis));
+        f.avg(of = f.each(of = ea.f.all(); mapF = $brainEpistasis));
+        f.avg(of = f.each(of = ea.f.all(); mapF = $globalEpistasis));
+        f.avg(of = f.each(of = ea.f.all(); mapF = $crossEpistasis));
+        f.sd(of = f.each(of = ea.f.all(); mapF = $bodyEpistasis));
+        f.sd(of = f.each(of = ea.f.all(); mapF = $brainEpistasis));
+        f.sd(of = f.each(of = ea.f.all(); mapF = $globalEpistasis));
+        f.sd(of = f.each(of = ea.f.all(); mapF = $crossEpistasis))
+      ];
+      runFunctions = [
+        ea.f.runKey(key = "run.problem.simulation.arena")
+      ];
+      onlyLast = false
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.quality(y = f.composition(of = ea.f.quality(of = ea.f.best()); then = f.mapValue(key = "first.agent.velocity.x")));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/best.fitness"
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.composition(of = ea.f.quality(of = ea.f.best()); then = f.mapValue(key = "first.agent.velocity.x")));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.best.fitness"
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.composition(of = ea.f.best(); then = $globalEpistasis));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/best.global.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.composition(of = ea.f.best(); then = $globalEpistasis));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.best.global.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.composition(of = ea.f.best(); then = $bodyEpistasis));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/best.body.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.composition(of = ea.f.best(); then = $bodyEpistasis));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.best.body.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.composition(of = ea.f.best(); then = $brainEpistasis));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/best.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.composition(of = ea.f.best(); then = $brainEpistasis));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.best.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.composition(of = ea.f.best(); then = $crossEpistasis));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/best.cross.body.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.composition(of = ea.f.best(); then = $crossEpistasis));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.best.cross.body.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $globalEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/avg.global.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $globalEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.avg.global.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $bodyEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/avg.body.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $bodyEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.avg.body.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $brainEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/avg.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $brainEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.avg.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $crossEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/avg.cross.body.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $crossEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.avg.cross.body.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $globalEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/sd.global.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $globalEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.sd.global.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $bodyEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/sd.body.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $bodyEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.sd.body.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $brainEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/sd.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $brainEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.sd.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $crossEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/sd.cross.body.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $crossEpistasis)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.sd.cross.body.brain.epistasis";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-epistasis-.*")
+    );
+    ea.l.saveForRun(
+      of = ea.acc.last();
+      path = "./results/{name}/{startTime}/video-{run.solver.name}-{run.randomGenerator.seed:%04d}";
+      processor = f.composition(
+        of = ea.f.solution(of = ea.f.best());
+        then = s.taskVideoBuilder(task = s.task.locomotion(duration = $duration))
+      )
+    )
+  ]
+)
