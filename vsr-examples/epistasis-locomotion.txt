@@ -89,7 +89,7 @@ ea.experiment(
     ea.run(
       problem = ea.p.smoToSubsettedSmo(
         smoProblem = ea.p.simToSmo(
-          simulation = s.task.locomotion(duration = $duration);
+          simulation = s.task.locomotion(duration = $duration; terrain = sim.terrain.hilly());
           toMaxObjectives = [s.f.outcome.faXVelocity()]
         );
         objectives = ["first.agent.velocity.x"]
