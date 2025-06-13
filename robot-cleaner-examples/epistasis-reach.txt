@@ -179,12 +179,12 @@ ea.experiment(
     ea.l.savePlotAndCsvForRun(
       plot = ea.plot.multi.quality(q = f.mapValue(key = $objName; of = ea.f.behaviorQuality()));
       overwrite = true;
-      path = "./results/{name}/{startTime}/best-fitness"
+      path = "./results/{name}/{startTime}/best.fitness"
     );
     ea.l.savePlotAndCsvForRun(
-      plot = ea.plot.multi.yBoxplotExp(y = f.composition(of = ea.f.quality(of = ea.f.best()); then = f.mapValue(key = $objName)));
+      plot = ea.plot.multi.qualityBoxplot(q = f.mapValue(key = $objName; of = ea.f.behaviorQuality()));
       overwrite = true;
-      path = "./results/{name}/{startTime}/final-best-fitness"
+      path = "./results/{name}/{startTime}/final.best.fitness"
     );
     ea.l.savePlotAndCsvForRun(
       plot = ea.plot.multi.xyExp(y = f.composition(of = ea.f.best(); then = $globalEpistasis));
