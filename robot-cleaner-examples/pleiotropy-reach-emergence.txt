@@ -1,0 +1,274 @@
+$brainMapper = ea.m.dsToNpnds(npnds = ds.num.mlp(innerLayerRatio = 0.5; nOfInnerLayers = 1))
+$objName = "final.dist"
+$duration = 30
+$bodySize = 4
+$brainSize = 29
+$bodyPleiotropy = f.as(of = ea.f.isRedundancy(of = f.pairSecond(of = ea.f.genotype()); endOffset = $brainSize); name = "body.pleiotropy")
+$brainPleiotropy = f.as(of = ea.f.isRedundancy(of = f.pairSecond(of = ea.f.genotype()); startOffset = $bodySize); name = "brain.pleiotropy")
+$globalPleiotropy = f.as(of = ea.f.isRedundancy(of = f.pairSecond(of = ea.f.genotype())); name = "global.pleiotropy")
+$crossPleiotropy = f.as(of = ea.f.isCrossRedundancy(of = f.pairSecond(of = ea.f.genotype()); splitOffset = $bodySize); name = "cross.pleiotropy")
+$descriptors = [
+  ea.s.me.d.descriptor(f = $bodyPleiotropy; nOfBins = 4);
+  ea.s.me.d.descriptor(f = $brainPleiotropy; nOfBins = 8)
+]
+$mapper = ea.mapper.pair(
+  first = ea.m.identity();
+  second = $brainMapper;
+  of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 1.0))
+)
+
+ea.experiment(
+  runs = (randomGenerator = (seed = [1:1:30]) * [m.defaultRG()]) *
+  (solver = (nEval = [50000]) *
+  [
+    ea.s.ga(
+      name = "ga-pleiotropy-1.0";
+      mapper = $mapper;
+      representation = ea.representation.pair(
+  	first = ea.representation.doubleString();
+  	second = ea.representation.intString(
+  	  factory = ea.r.f.isUniform();
+  	  mutations = [ea.r.go.oneMutation(mutations = [ea.r.go.isSymbolCopyMutation(); ea.r.go.isFlipMutation()])]
+  	)
+      )
+    );
+    ea.s.ga(
+      name = "ga-pleiotropy-1.0-unique";
+      mapper = $mapper;
+      representation = ea.representation.pair(
+  	first = ea.representation.doubleString();
+  	second = ea.representation.intString(
+  	  factory = ea.r.f.isUniformUnique();
+  	  mutations = [ea.r.go.oneMutation(mutations = [ea.r.go.isSymbolCopyMutation(); ea.r.go.isFlipMutation()])]
+  	)
+      )
+    );
+    ea.s.ga(
+      name = "ga-pleiotropy-1.0-sequential";
+      mapper = $mapper;
+      representation = ea.representation.pair(
+  	first = ea.representation.doubleString();
+  	second = ea.representation.intString(
+  	  factory = ea.r.f.isSequential();
+  	  mutations = [ea.r.go.oneMutation(mutations = [ea.r.go.isSymbolCopyMutation(); ea.r.go.isFlipMutation()])]
+  	)
+      )
+    )
+  ]) *
+  [ea.run(
+    problem = ea.p.simToSbbmo(
+      simulation = ds.s.variableSensorPositionsNavigation(arena = e_maze; nOfSensors = $bodySize; finalT = $duration);
+      toMinObjectives = [ds.e.n.finalD()]
+    )
+  );
+  ea.run(
+    problem = ea.p.simToSbbmo(
+      simulation = ds.s.variableSensorPositionsNavigation(arena = y_maze; nOfSensors = $bodySize; finalT = $duration);
+      toMinObjectives = [ds.e.n.finalD()]
+    )
+  )];
+  listeners = [
+    ea.l.console(
+      functions = [
+        f.mapValue(key = $objName; of = ea.f.behaviorQuality(of = ea.f.quality(of = ea.f.best())); format = "%6.4f");
+        ea.f.size(of = ea.f.genotype(of = ea.f.best()); format = "%3d");
+        ea.f.size(of = f.pairFirst(of = ea.f.genotype(of = ea.f.best())); format = "%3d");
+        ea.f.size(of = f.pairSecond(of = ea.f.genotype(of = ea.f.best())); format = "%3d");
+        f.composition(of = ea.f.best(); then = $bodyPleiotropy);
+        f.composition(of = ea.f.best(); then = $brainPleiotropy);
+        f.composition(of = ea.f.best(); then = $globalPleiotropy);
+        f.composition(of = ea.f.best(); then = $crossPleiotropy)
+      ];
+      onlyLast = true
+    );
+    ea.l.bestCsv(
+      path = "./results/{name}/{startTime}/results.csv";
+      functions = [
+        f.mapValue(key = $objName; of = ea.f.behaviorQuality(of = ea.f.quality(of = ea.f.best())); format = "%6.4f");
+        ea.f.size(of = ea.f.genotype(of = ea.f.best()); format = "%3d");
+        ea.f.size(of = f.pairFirst(of = ea.f.genotype(of = ea.f.best())); format = "%3d");
+        ea.f.size(of = f.pairSecond(of = ea.f.genotype(of = ea.f.best())); format = "%3d");
+        f.composition(of = ea.f.best(); then = $bodyPleiotropy);
+        f.composition(of = ea.f.best(); then = $brainPleiotropy);
+        f.composition(of = ea.f.best(); then = $globalPleiotropy);
+        f.composition(of = ea.f.best(); then = $crossPleiotropy);
+        f.avg(of = f.each(of = ea.f.all(); mapF = $bodyPleiotropy));
+        f.avg(of = f.each(of = ea.f.all(); mapF = $brainPleiotropy));
+        f.avg(of = f.each(of = ea.f.all(); mapF = $globalPleiotropy));
+        f.avg(of = f.each(of = ea.f.all(); mapF = $crossPleiotropy));
+        f.sd(of = f.each(of = ea.f.all(); mapF = $bodyPleiotropy));
+        f.sd(of = f.each(of = ea.f.all(); mapF = $brainPleiotropy));
+        f.sd(of = f.each(of = ea.f.all(); mapF = $globalPleiotropy));
+        f.sd(of = f.each(of = ea.f.all(); mapF = $crossPleiotropy))
+      ];
+      runFunctions = [
+        ea.f.runKey(key = "run.problem.simulation.arena")
+      ];
+      onlyLast = false
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.quality(q = f.mapValue(key = $objName; of = ea.f.behaviorQuality()));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/best.fitness"
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.qualityBoxplot(q = f.mapValue(key = $objName; of = ea.f.behaviorQuality()));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.best.fitness"
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.composition(of = ea.f.best(); then = $globalPleiotropy));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/best.global.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.composition(of = ea.f.best(); then = $globalPleiotropy));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.best.global.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.composition(of = ea.f.best(); then = $bodyPleiotropy));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/best.body.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.composition(of = ea.f.best(); then = $bodyPleiotropy));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.best.body.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.composition(of = ea.f.best(); then = $brainPleiotropy));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/best.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.composition(of = ea.f.best(); then = $brainPleiotropy));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.best.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.composition(of = ea.f.best(); then = $crossPleiotropy));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/best.cross.body.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.composition(of = ea.f.best(); then = $crossPleiotropy));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.best.cross.body.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $globalPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/avg.global.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $globalPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.avg.global.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $bodyPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/avg.body.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $bodyPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.avg.body.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $brainPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/avg.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $brainPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.avg.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $crossPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/avg.cross.body.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.avg(of = f.each(of = ea.f.all(); mapF = $crossPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.avg.cross.body.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $globalPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/sd.global.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $globalPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.sd.global.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $bodyPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/sd.body.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $bodyPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.sd.body.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $brainPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/sd.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $brainPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.sd.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.xyExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $crossPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/sd.cross.body.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      plot = ea.plot.multi.yBoxplotExp(y = f.sd(of = f.each(of = ea.f.all(); mapF = $crossPleiotropy)));
+      overwrite = true;
+      path = "./results/{name}/{startTime}/final.sd.cross.body.brain.pleiotropy";
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = ".*-pleiotropy-.*")
+    );
+    ea.l.savePlotAndCsvForRun(
+      path = "./results/{name}/{startTime}/{run.solver.name}/{run.problem.name}/archive-{run.randomGenerator.seed:%03d}";
+      plot = ea.plot.single.me(q = f.mapValue(key = $objName; of = ea.f.behaviorQuality()));
+      condition = predicate.matches(f = ea.f.runKey(key = "run.solver.name"); regex = "me-.*")
+    );
+    ea.l.saveForRun(
+      of = ea.acc.lastBest();
+      path = "./results/{name}/{startTime}/{run.solver.name}/{run.problem.name}/best-traj-{run.randomGenerator.seed:%03d}";
+      processor = ea.f.toImage(image = ds.d.navigation(); of = ea.f.behavior(of = ea.f.quality()))
+    )
+  ]
+)

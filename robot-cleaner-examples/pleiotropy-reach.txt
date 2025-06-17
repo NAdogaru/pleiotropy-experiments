@@ -1,16 +1,16 @@
 $brainMapper = ea.m.dsToNpnds(npnds = ds.num.mlp(innerLayerRatio = 0.5; nOfInnerLayers = 1))
 $objName = "final.dist"
-$eRpresentation = ea.representation.pair(
+$eRepresentation = ea.representation.pair(
   first = ea.representation.doubleString();
   second = ea.representation.intString(mutations = [ea.r.go.oneMutation(mutations = [ea.r.go.isSymbolCopyMutation(); ea.r.go.isFlipMutation()])])
 )
 $duration = 30
 $bodySize = 4
 $brainSize = 29
-$bodyPleiotropy = f.as(of = ea.f.intraPleiotropy(of = f.pairSecond(of = ea.f.genotype()); endOffset = $brainSize); name = "body.pleiotropy")
-$brainPleiotropy = f.as(of = ea.f.intraPleiotropy(of = f.pairSecond(of = ea.f.genotype()); startOffset = $bodySize); name = "brain.pleiotropy")
-$globalPleiotropy = f.as(of = ea.f.intraPleiotropy(of = f.pairSecond(of = ea.f.genotype())); name = "global.pleiotropy")
-$crossPleiotropy = f.as(of = ea.f.crossPleiotropy(of = f.pairSecond(of = ea.f.genotype()); splitOffset = $bodySize); name = "cross.pleiotropy")
+$bodyPleiotropy = f.as(of = ea.f.isRedundancy(of = f.pairSecond(of = ea.f.genotype()); endOffset = $brainSize); name = "body.pleiotropy")
+$brainPleiotropy = f.as(of = ea.f.isRedundancy(of = f.pairSecond(of = ea.f.genotype()); startOffset = $bodySize); name = "brain.pleiotropy")
+$globalPleiotropy = f.as(of = ea.f.isRedundancy(of = f.pairSecond(of = ea.f.genotype())); name = "global.pleiotropy")
+$crossPleiotropy = f.as(of = ea.f.isCrossRedundancy(of = f.pairSecond(of = ea.f.genotype()); splitOffset = $bodySize); name = "cross.pleiotropy")
 $descriptors = [
   ea.s.me.d.descriptor(f = $bodyPleiotropy; nOfBins = 4);
   ea.s.me.d.descriptor(f = $brainPleiotropy; nOfBins = 8)
@@ -27,7 +27,7 @@ ea.experiment(
         second = $brainMapper;
         of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 0.2))
       );
-      representation = $eRpresentation;
+      representation = $eRepresentation;
       descriptors = $descriptors
     );
     ea.s.mapElites(
@@ -37,7 +37,7 @@ ea.experiment(
         second = $brainMapper;
         of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 0.5))
       );
-      representation = $eRpresentation;
+      representation = $eRepresentation;
       descriptors = $descriptors
     );
     ea.s.mapElites(
@@ -47,7 +47,7 @@ ea.experiment(
         second = $brainMapper;
         of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 1))
       );
-      representation = $eRpresentation;
+      representation = $eRepresentation;
       descriptors = $descriptors
     );
     ea.s.mapElites(
@@ -57,7 +57,7 @@ ea.experiment(
         second = $brainMapper;
         of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 2))
       );
-      representation = $eRpresentation;
+      representation = $eRepresentation;
       descriptors = $descriptors
     );
     ea.s.mapElites(
@@ -67,7 +67,7 @@ ea.experiment(
         second = $brainMapper;
         of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 5))
       );
-      representation = $eRpresentation;
+      representation = $eRepresentation;
       descriptors = $descriptors
     );
     ea.s.ga(
@@ -86,7 +86,7 @@ ea.experiment(
         second = $brainMapper;
         of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 0.2))
       );
-      representation = $eRpresentation
+      representation = $eRepresentation
     );
     ea.s.ga(
       name = "ga-pleiotropy-0.5";
@@ -95,7 +95,7 @@ ea.experiment(
         second = $brainMapper;
         of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 0.5))
       );
-      representation = $eRpresentation
+      representation = $eRepresentation
     );
     ea.s.ga(
       name = "ga-pleiotropy-1.0";
@@ -104,7 +104,7 @@ ea.experiment(
         second = $brainMapper;
         of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 1))
       );
-      representation = $eRpresentation
+      representation = $eRepresentation
     );
     ea.s.ga(
       name = "ga-pleiotropy-2.0";
@@ -113,7 +113,7 @@ ea.experiment(
         second = $brainMapper;
         of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 2))
       );
-      representation = $eRpresentation
+      representation = $eRepresentation
     );
     ea.s.ga(
       name = "ga-pleiotropy-5.0";
@@ -122,7 +122,7 @@ ea.experiment(
         second = $brainMapper;
         of = ea.m.splitter(of = ea.m.isIndexed(relativeLength = 5))
       );
-      representation = $eRpresentation
+      representation = $eRepresentation
     )
   ]) *
   [ea.run(
