@@ -1,6 +1,10 @@
 # pleiotropy-experiments
 
 ## About
+This repository contains the results of simulations exploring the role of pleiotropy, where one gene affects multiple traits, in the co-evolution of body and brain in simulated robots. The robots are designed to complete specific tasks, and these experiments aim to shed light on how pleiotropy influences their evolution.
+Also, below there is an explanation on how to redo the simulations:
+
+## How to run experiments
 In order to run the experiments, at least **JDK 21** is required: if you are using a Unix based system, you can install one easily using [sdkman](https://sdkman.io/).
 The Java archive (June 2025) in this repository is based on the following frameworks:
 - [JGEA](https://github.com/ericmedvet/jgea)
